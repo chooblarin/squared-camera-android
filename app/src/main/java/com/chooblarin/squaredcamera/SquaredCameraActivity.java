@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 
 /**
@@ -26,6 +27,9 @@ public class SquaredCameraActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_squared_camera);
+
+        // 画面をスリープ状態にさせない
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         ActivityManager activityManager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
         Log.d(TAG, "standard max memory = " + activityManager.getMemoryClass() + "MB");

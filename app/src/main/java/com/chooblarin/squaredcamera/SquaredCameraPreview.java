@@ -122,7 +122,8 @@ public class SquaredCameraPreview extends SurfaceView
 
                 Matrix matrix = new Matrix();
                 matrix.postRotate(90); // for portrait
-                bitmap = Bitmap.createBitmap(bitmap, 0, 0, width, height, matrix, true);
+                // bitmap = Bitmap.createBitmap(bitmap, 0, 0, width, height, matrix, true);
+                bitmap = Bitmap.createBitmap(bitmap, 0, 0, height, height, matrix, true);
 
                 File picFile = getOutputMediaFile();
 

@@ -6,6 +6,7 @@ import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import java.io.IOException;
 import java.util.List;
@@ -75,6 +76,15 @@ public class SquaredCameraPreview extends SurfaceView
         }
     }
 
+    public void takePicture() {
+        Toast.makeText(getContext(),
+                "take picture", Toast.LENGTH_SHORT).show();
+
+        // make sure that preview running
+        //startCameraPreview();
+        tryAutoFocus();
+    }
+
     private void setCameraDisplayOrientation() {
         Camera.CameraInfo info = new Camera.CameraInfo();
         Camera.getCameraInfo(mCameraId, info);
@@ -114,5 +124,27 @@ public class SquaredCameraPreview extends SurfaceView
         layoutParams.height = (int)(size.width * coefficient);
 
         this.setLayoutParams(layoutParams);
+    }
+
+    private void cancelAutoFocus() {
+        mCamera.cancelAutoFocus();
+    }
+
+    private void tryAutoFocus() {
+        Camera.Parameters parameters = mCamera.getParameters();
+        String focusMode = parameters.getFocusMode();
+        Log.d(TAG, "focusMode is " + focusMode);
+
+        Camera.AutoFocusCallback autoFocusCallback = new Camera.AutoFocusCallback() {
+            @Override
+            public void onAutoFocus(boolean success, Camera camera) {
+                Log.d(TAG, "autofocus complete: " + success);
+                /*
+                mFocusSuccess = success ? FOCUS_SUCCESS : FOCUS_FAILED;
+                mFocusCompleteTime = System.currentTimeMillis();
+                */
+            }
+        };
+        mCamera.autoFocus(autoFocusCallback);
     }
 }

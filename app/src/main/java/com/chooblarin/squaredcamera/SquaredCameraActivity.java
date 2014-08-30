@@ -8,7 +8,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.FrameLayout;
-import android.widget.Toast;
 
 /**
  * Created by chooblarin on 2014/08/30.
@@ -36,8 +35,7 @@ public class SquaredCameraActivity extends Activity {
         ((FrameLayout) findViewById(R.id.squared_camera_preview)).addView(mPreview);
     }
 
-    public void onClickTakePhoto(View view) {
-        Toast.makeText(getApplicationContext(),
-                "take photo", Toast.LENGTH_SHORT).show();
+    public void onClickTakePicture(View view) {
+        mPreview.takePicture();
     }
 }

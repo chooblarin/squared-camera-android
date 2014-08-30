@@ -84,9 +84,6 @@ public class SquaredCameraPreview extends SurfaceView
     // set optimal preview size
     private void setCameraPreviewSize() {
         Camera.Parameters params = mCamera.getParameters();
-        Log.d(TAG, "current preview size: width ->"
-                + params.getPreviewSize().width
-                + ", height -> " + params.getPreviewSize().height);
 
         List<Camera.Size> previewSizes = params.getSupportedPreviewSizes();
         if (previewSizes.isEmpty()) {
@@ -108,24 +105,13 @@ public class SquaredCameraPreview extends SurfaceView
     // Adjust SurfaceView size
     private void adjustViewSize(Camera.Size size) {
         int width = getWidth();
-        int height = getHeight();
-
-        Log.d("mimic adjustViewSize", "get width: " + width);
-        Log.d("mimic adjustViewSize", "get height: " + height);
-
-        Log.d("mimic adjustViewSize", "size width: " + size.width);
-        Log.d("mimic adjustViewSize", "size height: " + size.height);
 
         ViewGroup.LayoutParams layoutParams = this.getLayoutParams();
         // for portrait
         layoutParams.width = width;
         // float coefficient = (float) width / size.width;
         float coefficient = (float) size.height / width;
-        Log.d("mimic adjustViewSize", "coefficient: " + coefficient);
         layoutParams.height = (int)(size.width * coefficient);
-
-        Log.d("mimic layout", "width: " + layoutParams.width
-                + ", height: " + layoutParams.height);
 
         this.setLayoutParams(layoutParams);
     }

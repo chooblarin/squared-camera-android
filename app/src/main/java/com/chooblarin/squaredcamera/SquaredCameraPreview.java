@@ -107,7 +107,7 @@ public class SquaredCameraPreview extends SurfaceView
 
         // make sure that preview running
         mCamera.startPreview();
-        tryAutoFocus();
+        //tryAutoFocus();
 
         Camera.PictureCallback jpegPictureCallback = new Camera.PictureCallback() {
             @Override
@@ -142,24 +142,13 @@ public class SquaredCameraPreview extends SurfaceView
 
                 Matrix matrix = new Matrix();
                 matrix.postRotate(90); // for portrait
-                /*
-                int length = -1;
-                int adj = -1;
-                if (cameraRatio - previewRatio > 0) {
-                    length = (int)(size * (previewRatio / cameraRatio));
-                    adj = (int)((size - length) / 2);
-                } else {
-                    // TODO:
-                    throw new IllegalStateException("camera size is smaller than preview size");
-                }
-                Log.d(TAG, "length -> " + length + ", adj -> " + adj);
-                */
 
-                int length = (int)(size * (previewRatio / cameraRatio));
+                int length = (int)(size * (previewRatio / cameraRatio)); // 1辺の長さ
                 Log.d(TAG, "rid length -> " + length);
-                int rid = size - length;
+                int rid = size - length; // 切り捨てる部分の長さ
 
                 // 所望のBitmapを生成
+                // 座標系は回転する前のモノっぽい（?）
                 Bitmap source = Bitmap.createBitmap(tmp,
                         0,  // x
                         (int)(rid * 0.5), // y
@@ -167,8 +156,9 @@ public class SquaredCameraPreview extends SurfaceView
                         length,
                         matrix, true);
 
-                //tmp.recycle();
+                tmp.recycle();
 
+                // bitmapをファイルに保存
                 File picFile = getOutputMediaFile();
 
                 try {
@@ -203,7 +193,9 @@ public class SquaredCameraPreview extends SurfaceView
             }
         };
 
+        takePictureWithAutoFocus(jpegPictureCallback);
         // take picture
+        /*
         try {
             mCamera.takePicture(null, null, jpegPictureCallback);
             mIsTakingPhoto = true;
@@ -216,6 +208,7 @@ public class SquaredCameraPreview extends SurfaceView
             Toast.makeText(getContext(),
                     "Failed to take picture", Toast.LENGTH_SHORT).show();
         }
+        */
     }
 
     private void setCameraDisplayOrientation() {
@@ -303,6 +296,31 @@ public class SquaredCameraPreview extends SurfaceView
                 mFocusSuccess = success ? FOCUS_SUCCESS : FOCUS_FAILED;
                 mFocusCompleteTime = System.currentTimeMillis();
                 */
+            }
+        };
+        mCamera.autoFocus(autoFocusCallback);
+    }
+
+    private void takePictureWithAutoFocus(final Camera.PictureCallback callback) {
+        Camera.AutoFocusCallback autoFocusCallback = new Camera.AutoFocusCallback() {
+            @Override
+            public void onAutoFocus(boolean success, Camera camera) {
+                if (success) {
+                    Log.d(TAG, "autofocus complete: " + success);
+                    // take picture
+                    try {
+                        mCamera.takePicture(null, null, callback);
+                        mIsTakingPhoto = true;
+                        Toast.makeText(getContext(),
+                                "Taking a photo...", Toast.LENGTH_SHORT).show();
+
+                    } catch (Exception e) {
+                        Log.d(TAG, "Camera takePicture failed: " + e.getMessage());
+                        e.printStackTrace();
+                        Toast.makeText(getContext(),
+                                "Failed to take picture", Toast.LENGTH_SHORT).show();
+                    }
+                }
             }
         };
         mCamera.autoFocus(autoFocusCallback);

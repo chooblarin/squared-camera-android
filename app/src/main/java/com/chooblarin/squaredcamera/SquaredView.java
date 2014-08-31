@@ -2,6 +2,7 @@ package com.chooblarin.squaredcamera;
 
 import android.content.Context;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 
 /**
@@ -20,6 +21,8 @@ public class SquaredView extends View {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        Log.d("mimic SquaredView", "getMeasuredWidth -> " + getMeasuredWidth()
+                + ", getMeasuredWidth()" + getMeasuredWidth());
         setMeasuredDimension(getMeasuredWidth(), getMeasuredWidth());
     }
 }

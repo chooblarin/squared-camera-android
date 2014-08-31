@@ -42,6 +42,10 @@ public class SquaredCameraPreview extends SurfaceView
 
     private boolean mHasFocusArea;
 
+    private Camera.Size mSurfaceSize;
+
+    private Camera.Size mPictureSize;
+
     @SuppressWarnings("deprecation")
     public SquaredCameraPreview(Context context) {
         super(context);
@@ -108,37 +112,77 @@ public class SquaredCameraPreview extends SurfaceView
         Camera.PictureCallback jpegPictureCallback = new Camera.PictureCallback() {
             @Override
             public void onPictureTaken(byte[] data, Camera camera) {
-                Bitmap bitmap = null;
+
+                int maxSize = 1024;
+                mCamera.stopPreview();
+
                 BitmapFactory.Options options = new BitmapFactory.Options();
 
-                // for debug
-                options.inSampleSize = 2;
+                // 所望のbitmapをつくる前にサイズを調べる．(OOM対策)
+                options.inJustDecodeBounds = true;
+                BitmapFactory.decodeByteArray(data, 0, data.length, options);
 
-                bitmap = BitmapFactory.decodeByteArray(data, 0, data.length, options);
-                int width = bitmap.getWidth();
-                int height = bitmap.getHeight();
+                int width = options.outWidth; // 4128
+                int height = options.outHeight; // 3096
 
-                Log.d(TAG, "decoded bitmap size " + width + ", " + height);
+                Log.d(TAG, "scanned size .. options.size " + width + ", " + height);
+
+                // サイズを小さくして読み込み
+                int srcSize = Math.max(width, height); // 4128
+                options.inSampleSize = maxSize < srcSize ? (srcSize / maxSize) : 1; // 4
+                Log.d(TAG, "sample size " + options.inSampleSize);
+                options.inJustDecodeBounds = false;
+                Bitmap tmp = BitmapFactory.decodeByteArray(data, 0, data.length, options);
+                Log.d(TAG, "risezed size .. options.size " + options.outWidth + ", " + options.outHeight);
+
+                int size = Math.min(options.outWidth, options.outHeight); // 774
+                float previewRatio = (float) mSurfaceSize.height / (float) mSurfaceSize.width;
+                float cameraRatio = (float) options.outHeight / (float) options.outWidth;
+                Log.d(TAG, "preview ratio: " + previewRatio + ", camera ratio: " + cameraRatio);
 
                 Matrix matrix = new Matrix();
                 matrix.postRotate(90); // for portrait
-                // bitmap = Bitmap.createBitmap(bitmap, 0, 0, width, height, matrix, true);
-                bitmap = Bitmap.createBitmap(bitmap, 0, 0, height, height, matrix, true);
+                /*
+                int length = -1;
+                int adj = -1;
+                if (cameraRatio - previewRatio > 0) {
+                    length = (int)(size * (previewRatio / cameraRatio));
+                    adj = (int)((size - length) / 2);
+                } else {
+                    // TODO:
+                    throw new IllegalStateException("camera size is smaller than preview size");
+                }
+                Log.d(TAG, "length -> " + length + ", adj -> " + adj);
+                */
+
+                int length = (int)(size * (previewRatio / cameraRatio));
+                Log.d(TAG, "rid length -> " + length);
+                int rid = size - length;
+
+                // 所望のBitmapを生成
+                Bitmap source = Bitmap.createBitmap(tmp,
+                        0,  // x
+                        (int)(rid * 0.5), // y
+                        length,
+                        length,
+                        matrix, true);
+
+                //tmp.recycle();
 
                 File picFile = getOutputMediaFile();
 
                 try {
                     FileOutputStream fos = new FileOutputStream(picFile);
-                    if (bitmap != null) {
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, fos);
+                    if (source != null) {
+                        source.compress(Bitmap.CompressFormat.JPEG, 80, fos);
                     } else {
                         fos.write(data);
                     }
                     fos.close();
 
                     // oom ...
-                    if (bitmap != null) {
-                        bitmap.recycle();
+                    if (source != null) {
+                        source.recycle();
                     }
 
                 } catch (FileNotFoundException e) {
@@ -196,10 +240,14 @@ public class SquaredCameraPreview extends SurfaceView
             }
         }
 
-        params.setPreviewSize(bestSize.width, bestSize.height);
+        mSurfaceSize = bestSize;
+
+        Log.d(TAG, "preview sizes -> w : " + bestSize.width
+                + ", h: " + bestSize.height + ", ratio: " + (float) bestSize.height / bestSize.width);
+        params.setPreviewSize(mSurfaceSize.width, mSurfaceSize.height);
 
         mCamera.setParameters(params);
-        adjustViewSize(bestSize);
+        adjustViewSize(mSurfaceSize);
     }
 
     private void setPictureSize() {
@@ -209,8 +257,6 @@ public class SquaredCameraPreview extends SurfaceView
         List<Camera.Size> sizes = params.getSupportedPictureSizes();
         Camera.Size currentSize = null;
         for (Camera.Size size : sizes) {
-            Log.d(TAG, "Supported size: width -> " + size.width + ", " +
-                    "height -> " + size.height);
             if (currentSize == null || size.width > currentSize.width
                     || (size.width == currentSize.width && size.height > currentSize.height)) {
                 currentSize = size;
@@ -218,8 +264,10 @@ public class SquaredCameraPreview extends SurfaceView
         }
 
         if (currentSize != null) {
-            Log.d(TAG, "Current size: width ->" + currentSize.width + ", " +
-                    "height -> " + currentSize.height);
+            Log.d(TAG, "picture size: width ->" + currentSize.width + ", " +
+                    "height -> " + currentSize.height + ", ratio -> " + (float) currentSize.height / currentSize.width);
+            mPictureSize = currentSize;
+            params.setPictureSize(mPictureSize.width, mPictureSize.height);
             mCamera.setParameters(params);
         }
     }
@@ -284,5 +332,12 @@ public class SquaredCameraPreview extends SurfaceView
         );
 
         return mediaFile;
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        Log.d("mimic SquareCameraPreview", "getMeasuredWidth -> " + getMeasuredWidth()
+                + ", getMeasuredHeight()" + getMeasuredHeight());
     }
 }

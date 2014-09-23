@@ -3,7 +3,10 @@ package com.chooblarin.squaredcamera;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Matrix;
+import android.graphics.Paint;
 import android.graphics.Rect;
 import android.hardware.Camera;
 import android.os.Environment;
@@ -54,6 +57,12 @@ public class SquaredCameraPreview extends SurfaceView
     private Matrix mCameraToPreviewMatrix = new Matrix();
 
     private Matrix mPreviewToCameraMatrix = new Matrix();
+
+    private int mFocusScreenX;
+
+    private int mFocusScreenY;
+
+    private Paint p = new Paint();
 
     @SuppressWarnings("deprecation")
     public SquaredCameraPreview(Context context) {
@@ -107,6 +116,24 @@ public class SquaredCameraPreview extends SurfaceView
     }
 
     @Override
+    protected void onDraw(Canvas canvas) {
+        float scale = getResources().getDisplayMetrics().density;
+        Log.d(TAG, "scale " + scale);
+
+        if (mCamera != null) {
+            int size = 150;
+            p.setColor(Color.argb(150, 100, 200, 200));
+            p.setStyle(Paint.Style.STROKE);
+
+            if (mHasFocusArea) {
+                canvas.drawRect(mFocusScreenX - size, mFocusScreenY - size, mFocusScreenX + size, mFocusScreenY + size, p);
+            }
+        }
+
+        super.onDraw(canvas);
+    }
+
+    @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (event.getPointerCount() != 1) {
             Log.d(TAG, "multi touch");
@@ -136,6 +163,12 @@ public class SquaredCameraPreview extends SurfaceView
             Log.d(TAG, "set focus (and metering?) area");
             float x = event.getX();
             float y = event.getY();
+
+            mHasFocusArea = true;
+            mFocusScreenX = (int) x;
+            mFocusScreenY = (int) y;
+            invalidate();
+
             Log.d(TAG, "x => " + x + ", y => " + y);
 
             ArrayList<Camera.Area> areas = getAreas(event.getX(), event.getY());
@@ -287,14 +320,8 @@ public class SquaredCameraPreview extends SurfaceView
                     e.printStackTrace();
                 }
 
-                // restart camera
-                try {
-                    mCamera.startPreview();
-                    mIsTakingPhoto = false;
-                } catch (Exception e) {
-                    Log.d(TAG, "Error starting camera preview after taking photo: " + e.getMessage());
-                }
-
+                // not restart camera
+                mIsTakingPhoto = false;
                 //sendBroadcast(new Intent(Intent.ACTION_MEDIA_MOUNTED, Uri.fromFile(picFile)));
             }
         };
@@ -422,7 +449,9 @@ public class SquaredCameraPreview extends SurfaceView
         Camera.AutoFocusCallback autoFocusCallback = new Camera.AutoFocusCallback() {
             @Override
             public void onAutoFocus(boolean success, Camera camera) {
-                Log.d(TAG, "autofocus complete: " + success);
+                Log.d(TAG, "autofocus complete: success -> " + success);
+                mHasFocusArea = false;
+                invalidate();
                 /*
                 mFocusSuccess = success ? FOCUS_SUCCESS : FOCUS_FAILED;
                 mFocusCompleteTime = System.currentTimeMillis();

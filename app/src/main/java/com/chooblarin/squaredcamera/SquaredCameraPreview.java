@@ -4,9 +4,11 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.graphics.Rect;
 import android.hardware.Camera;
 import android.os.Environment;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.ViewGroup;
@@ -17,6 +19,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -45,6 +48,12 @@ public class SquaredCameraPreview extends SurfaceView
     private Camera.Size mSurfaceSize;
 
     private Camera.Size mPictureSize;
+
+    private Camera.CameraInfo mCameraInfo = new Camera.CameraInfo();
+
+    private Matrix mCameraToPreviewMatrix = new Matrix();
+
+    private Matrix mPreviewToCameraMatrix = new Matrix();
 
     @SuppressWarnings("deprecation")
     public SquaredCameraPreview(Context context) {
@@ -97,6 +106,103 @@ public class SquaredCameraPreview extends SurfaceView
         }
     }
 
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (event.getPointerCount() != 1) {
+            Log.d(TAG, "multi touch");
+            return true;
+        }
+
+        if (event.getAction() != MotionEvent.ACTION_UP) {
+            Log.d(TAG, "ACTION -> " + event.getAction());
+            return true;
+        }
+
+        if (mIsTakingPhoto) {
+            return true;
+        }
+
+        mCamera.startPreview();
+        cancelAutoFocus();
+
+        Camera.Parameters parameters = mCamera.getParameters();
+        String focusMode = parameters.getFocusMode();
+
+        Log.d(TAG, "FocusMode -> " + focusMode);
+        if (parameters.getMaxNumFocusAreas() != 0 && focusMode != null &&
+                (focusMode.equals(Camera.Parameters.FOCUS_MODE_AUTO)
+                        || focusMode.equals(Camera.Parameters.FOCUS_MODE_MACRO)
+                        || focusMode.equals(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE))) {
+            Log.d(TAG, "set focus (and metering?) area");
+            float x = event.getX();
+            float y = event.getY();
+            Log.d(TAG, "x => " + x + ", y => " + y);
+
+            ArrayList<Camera.Area> areas = getAreas(event.getX(), event.getY());
+            parameters.setFocusAreas(areas);
+
+            if (parameters.getMaxNumMeteringAreas() != 0) { // also set metering areas
+                parameters.setMeteringAreas(areas);
+            }
+
+            mCamera.setParameters(parameters);
+        }
+
+        tryAutoFocus();
+        return true;
+    }
+
+    private ArrayList<Camera.Area> getAreas(float x, float y) {
+        float[] coords = {x, y};
+        // calculatePreviewToCameraMatrix();
+        // previewToCameraMatrix.MapPoints(coords);
+        mCameraToPreviewMatrix.reset();
+        //mCamera.getCameraInfo(mCameraId, mCameraInfo);
+        mCameraToPreviewMatrix.postRotate(90);
+        mCameraToPreviewMatrix.postScale(getWidth() / 2000f, getHeight() / 2000f);
+        mCameraToPreviewMatrix.postTranslate(getWidth() / 2f, getHeight() / 2f);
+        Log.d(TAG, "CameraToPreviewMatrix " + mCameraToPreviewMatrix.toString());
+
+        if (!mCameraToPreviewMatrix.invert(mPreviewToCameraMatrix)) {
+            Log.d(TAG, "failed to invert matrix !");
+        }
+        Log.d(TAG, "mPreviewToCameraMatrix " + mPreviewToCameraMatrix.toString());
+
+        Log.d(TAG, "x => " + coords[0] + ", y => " + coords[1]);
+        mPreviewToCameraMatrix.mapPoints(coords);
+        Log.d(TAG, "x => " + coords[0] + ", y => " + coords[1]);
+
+        x = coords[0];
+        y = coords[1];
+
+        int focusSize = 50;
+        Rect rect = new Rect();
+        rect.left = (int) x - focusSize;
+        rect.right = (int) x + focusSize;
+        rect.top = (int) y - focusSize;
+        rect.bottom = (int) y + focusSize;
+
+        if (rect.left < -1000) {
+            rect.left = -1000;
+            rect.right = rect.left + 2 * focusSize;
+        } else if (rect.right > 1000) {
+            rect.right = 1000;
+            rect.left = rect.right - 2 * focusSize;
+        }
+
+        if (rect.top < -1000) {
+            rect.top = -1000;
+            rect.bottom = rect.top + 2 * focusSize;
+        } else if (rect.bottom > 1000) {
+            rect.bottom = 1000;
+            rect.top = rect.bottom - 2 * focusSize;
+        }
+
+        ArrayList<Camera.Area> areas = new ArrayList<Camera.Area>();
+        areas.add(new Camera.Area(rect, 1000));
+        return areas;
+    }
+
     public void takePicture() {
         Toast.makeText(getContext(),
                 "take picture", Toast.LENGTH_SHORT).show();
@@ -143,7 +249,7 @@ public class SquaredCameraPreview extends SurfaceView
                 Matrix matrix = new Matrix();
                 matrix.postRotate(90); // for portrait
 
-                int length = (int)(size * (previewRatio / cameraRatio)); // 1辺の長さ
+                int length = (int) (size * (previewRatio / cameraRatio)); // 1辺の長さ
                 Log.d(TAG, "rid length -> " + length);
                 int rid = size - length; // 切り捨てる部分の長さ
 
@@ -151,7 +257,7 @@ public class SquaredCameraPreview extends SurfaceView
                 // 座標系は回転する前のモノっぽい（?）
                 Bitmap source = Bitmap.createBitmap(tmp,
                         0,  // x
-                        (int)(rid * 0.5), // y
+                        (int) (rid * 0.5), // y
                         length,
                         length,
                         matrix, true);
@@ -193,11 +299,14 @@ public class SquaredCameraPreview extends SurfaceView
             }
         };
 
-        takePictureWithAutoFocus(jpegPictureCallback);
-        // take picture
-        /*
+        Camera.ShutterCallback shutterCallback = new Camera.ShutterCallback() {
+            @Override
+            public void onShutter() {
+            }
+        };
+
         try {
-            mCamera.takePicture(null, null, jpegPictureCallback);
+            mCamera.takePicture(shutterCallback, null, jpegPictureCallback);
             mIsTakingPhoto = true;
             Toast.makeText(getContext(),
                     "Taking a photo...", Toast.LENGTH_SHORT).show();
@@ -208,6 +317,28 @@ public class SquaredCameraPreview extends SurfaceView
             Toast.makeText(getContext(),
                     "Failed to take picture", Toast.LENGTH_SHORT).show();
         }
+        /*
+        mCamera.autoFocus(new Camera.AutoFocusCallback() {
+            @Override
+            public void onAutoFocus(boolean success, Camera camera) {
+                if (success) {
+                    Log.d(TAG, "autofocus complete: " + success);
+                    // take picture
+                    try {
+                        mCamera.takePicture(null, null, jpegPictureCallback);
+                        mIsTakingPhoto = true;
+                        Toast.makeText(getContext(),
+                                "Taking a photo...", Toast.LENGTH_SHORT).show();
+
+                    } catch (Exception e) {
+                        Log.d(TAG, "Camera takePicture failed: " + e.getMessage());
+                        e.printStackTrace();
+                        Toast.makeText(getContext(),
+                                "Failed to take picture", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        });
         */
     }
 
@@ -296,31 +427,6 @@ public class SquaredCameraPreview extends SurfaceView
                 mFocusSuccess = success ? FOCUS_SUCCESS : FOCUS_FAILED;
                 mFocusCompleteTime = System.currentTimeMillis();
                 */
-            }
-        };
-        mCamera.autoFocus(autoFocusCallback);
-    }
-
-    private void takePictureWithAutoFocus(final Camera.PictureCallback callback) {
-        Camera.AutoFocusCallback autoFocusCallback = new Camera.AutoFocusCallback() {
-            @Override
-            public void onAutoFocus(boolean success, Camera camera) {
-                if (success) {
-                    Log.d(TAG, "autofocus complete: " + success);
-                    // take picture
-                    try {
-                        mCamera.takePicture(null, null, callback);
-                        mIsTakingPhoto = true;
-                        Toast.makeText(getContext(),
-                                "Taking a photo...", Toast.LENGTH_SHORT).show();
-
-                    } catch (Exception e) {
-                        Log.d(TAG, "Camera takePicture failed: " + e.getMessage());
-                        e.printStackTrace();
-                        Toast.makeText(getContext(),
-                                "Failed to take picture", Toast.LENGTH_SHORT).show();
-                    }
-                }
             }
         };
         mCamera.autoFocus(autoFocusCallback);

@@ -9,7 +9,6 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.hardware.Camera;
-import android.os.Environment;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -17,13 +16,11 @@ import android.view.SurfaceView;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
+import com.chooblarin.squaredcamera.event.BusHolder;
+import com.chooblarin.squaredcamera.event.TakePicture;
+
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -34,10 +31,6 @@ public class SquaredCameraPreview extends SurfaceView
 
     private static final String TAG = "mimic_SquaredCameraPreview";
 
-    private static final String JPEG_FILE_PREFIX = "IMG_";
-
-    private static final String JPEG_FILE_SUFFIX = ".jpg";
-
     private SurfaceHolder mHolder;
 
     private Camera mCamera;
@@ -45,6 +38,8 @@ public class SquaredCameraPreview extends SurfaceView
     private int mCameraId;
 
     private boolean mIsTakingPhoto;
+
+    private boolean mFlagControlMode;
 
     private boolean mHasFocusArea;
 
@@ -145,7 +140,7 @@ public class SquaredCameraPreview extends SurfaceView
             return true;
         }
 
-        if (mIsTakingPhoto) {
+        if (mIsTakingPhoto || mFlagControlMode) {
             return true;
         }
 
@@ -236,7 +231,7 @@ public class SquaredCameraPreview extends SurfaceView
         return areas;
     }
 
-    public void takePicture() {
+    public void onPressTakePicture() {
         Toast.makeText(getContext(),
                 "take picture", Toast.LENGTH_SHORT).show();
 
@@ -252,7 +247,7 @@ public class SquaredCameraPreview extends SurfaceView
             @Override
             public void onPictureTaken(byte[] data, Camera camera) {
 
-                int maxSize = 1024;
+                int maxSize = 2048;
                 mCamera.stopPreview();
 
                 BitmapFactory.Options options = new BitmapFactory.Options();
@@ -268,7 +263,7 @@ public class SquaredCameraPreview extends SurfaceView
 
                 // サイズを小さくして読み込み
                 int srcSize = Math.max(width, height); // 4128
-                options.inSampleSize = maxSize < srcSize ? (srcSize / maxSize) : 1; // 4
+                options.inSampleSize = maxSize < srcSize ? (srcSize / maxSize) : 1;
                 Log.d(TAG, "sample size " + options.inSampleSize);
                 options.inJustDecodeBounds = false;
                 Bitmap tmp = BitmapFactory.decodeByteArray(data, 0, data.length, options);
@@ -297,28 +292,7 @@ public class SquaredCameraPreview extends SurfaceView
 
                 tmp.recycle();
 
-                // bitmapをファイルに保存
-                File picFile = getOutputMediaFile();
-
-                try {
-                    FileOutputStream fos = new FileOutputStream(picFile);
-                    if (source != null) {
-                        source.compress(Bitmap.CompressFormat.JPEG, 80, fos);
-                    } else {
-                        fos.write(data);
-                    }
-                    fos.close();
-
-                    // oom ...
-                    if (source != null) {
-                        source.recycle();
-                    }
-
-                } catch (FileNotFoundException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                BusHolder.getInstance().post(new TakePicture(source));
 
                 // not restart camera
                 mIsTakingPhoto = false;
@@ -339,34 +313,16 @@ public class SquaredCameraPreview extends SurfaceView
                     "Taking a photo...", Toast.LENGTH_SHORT).show();
 
         } catch (Exception e) {
-            Log.d(TAG, "Camera takePicture failed: " + e.getMessage());
+            Log.d(TAG, "Camera onPressTakePicture failed: " + e.getMessage());
             e.printStackTrace();
             Toast.makeText(getContext(),
                     "Failed to take picture", Toast.LENGTH_SHORT).show();
         }
-        /*
-        mCamera.autoFocus(new Camera.AutoFocusCallback() {
-            @Override
-            public void onAutoFocus(boolean success, Camera camera) {
-                if (success) {
-                    Log.d(TAG, "autofocus complete: " + success);
-                    // take picture
-                    try {
-                        mCamera.takePicture(null, null, jpegPictureCallback);
-                        mIsTakingPhoto = true;
-                        Toast.makeText(getContext(),
-                                "Taking a photo...", Toast.LENGTH_SHORT).show();
+    }
 
-                    } catch (Exception e) {
-                        Log.d(TAG, "Camera takePicture failed: " + e.getMessage());
-                        e.printStackTrace();
-                        Toast.makeText(getContext(),
-                                "Failed to take picture", Toast.LENGTH_SHORT).show();
-                    }
-                }
-            }
-        });
-        */
+    public void retake() {
+        mFlagControlMode = false;
+        mCamera.startPreview();
     }
 
     private void setCameraDisplayOrientation() {
@@ -459,32 +415,6 @@ public class SquaredCameraPreview extends SurfaceView
             }
         };
         mCamera.autoFocus(autoFocusCallback);
-    }
-
-    private File getOutputMediaFile() {
-        File mediaStorageDir = new File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
-                "squared"
-        );
-
-        // Create the storage directory if it does not exist
-        if (!mediaStorageDir.exists()) {
-            if (!mediaStorageDir.mkdirs()) {
-                Log.d(TAG, "failed to create directory");
-                return null;
-            }
-            //activity.sendBroadcast(new Intent(Intent.ACTION_MEDIA_MOUNTED, Uri.fromFile(mediaStorageDir)));
-        }
-
-        // Create a media file name
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        File mediaFile;
-        mediaFile = new File(
-                mediaStorageDir.getPath() + File.separator
-                        + JPEG_FILE_PREFIX + timeStamp + JPEG_FILE_SUFFIX
-        );
-
-        return mediaFile;
     }
 
     @Override

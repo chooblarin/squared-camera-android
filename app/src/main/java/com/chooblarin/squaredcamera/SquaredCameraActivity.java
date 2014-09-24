@@ -63,7 +63,7 @@ public class SquaredCameraActivity extends Activity {
 
         ActivityManager activityManager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
         Log.d(TAG, "standard max memory = " + activityManager.getMemoryClass() + "MB");
-        Log.d(TAG, "large max memory = " + activityManager.getLargeMemoryClass() + "MB");
+        //Log.d(TAG, "large max memory = " + activityManager.getLargeMemoryClass() + "MB");
 
         mPreview = new SquaredCameraPreview(this);
         ((FrameLayout) findViewById(R.id.squared_camera_preview)).addView(mPreview);

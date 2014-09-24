@@ -9,6 +9,7 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.hardware.Camera;
+import android.os.Build;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -150,30 +151,31 @@ public class SquaredCameraPreview extends SurfaceView
         Camera.Parameters parameters = mCamera.getParameters();
         String focusMode = parameters.getFocusMode();
 
-        Log.d(TAG, "FocusMode -> " + focusMode);
-        if (parameters.getMaxNumFocusAreas() != 0 && focusMode != null &&
-                (focusMode.equals(Camera.Parameters.FOCUS_MODE_AUTO)
-                        || focusMode.equals(Camera.Parameters.FOCUS_MODE_MACRO)
-                        || focusMode.equals(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE))) {
-            Log.d(TAG, "set focus (and metering?) area");
-            float x = event.getX();
-            float y = event.getY();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+            Log.d(TAG, "FocusMode -> " + focusMode);
+            if (parameters.getMaxNumFocusAreas() != 0 && focusMode != null &&
+                    (focusMode.equals(Camera.Parameters.FOCUS_MODE_AUTO)
+                            || focusMode.equals(Camera.Parameters.FOCUS_MODE_MACRO)
+                            || focusMode.equals(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE))) {
+                Log.d(TAG, "set focus (and metering?) area");
+                float x = event.getX();
+                float y = event.getY();
 
-            mHasFocusArea = true;
-            mFocusScreenX = (int) x;
-            mFocusScreenY = (int) y;
-            invalidate();
+                mHasFocusArea = true;
+                mFocusScreenX = (int) x;
+                mFocusScreenY = (int) y;
+                invalidate();
 
-            Log.d(TAG, "x => " + x + ", y => " + y);
+                Log.d(TAG, "x => " + x + ", y => " + y);
 
-            ArrayList<Camera.Area> areas = getAreas(event.getX(), event.getY());
-            parameters.setFocusAreas(areas);
+                ArrayList<Camera.Area> areas = getAreas(event.getX(), event.getY());
+                parameters.setFocusAreas(areas);
 
-            if (parameters.getMaxNumMeteringAreas() != 0) { // also set metering areas
-                parameters.setMeteringAreas(areas);
+                if (parameters.getMaxNumMeteringAreas() != 0) { // also set metering areas
+                    parameters.setMeteringAreas(areas);
+                }
+                mCamera.setParameters(parameters);
             }
-
-            mCamera.setParameters(parameters);
         }
 
         tryAutoFocus();
@@ -227,7 +229,9 @@ public class SquaredCameraPreview extends SurfaceView
         }
 
         ArrayList<Camera.Area> areas = new ArrayList<Camera.Area>();
-        areas.add(new Camera.Area(rect, 1000));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+            areas.add(new Camera.Area(rect, 1000));
+        }
         return areas;
     }
 

@@ -161,8 +161,6 @@ public class SquaredCameraPreview extends SurfaceView
                 mFocusScreenY = (int) y;
                 invalidate();
 
-                Log.d(TAG, "x => " + x + ", y => " + y);
-
                 ArrayList<Camera.Area> areas = getAreas(event.getX(), event.getY());
                 parameters.setFocusAreas(areas);
 
@@ -292,7 +290,6 @@ public class SquaredCameraPreview extends SurfaceView
 
                 tmp.recycle();
 
-                // BusHolder.getInstance().post(new TakePicture(source));
                 callback.onPictureTaken(source);
 
                 // not restart camera
@@ -341,18 +338,18 @@ public class SquaredCameraPreview extends SurfaceView
             Log.d(TAG, "emtry preview sizes");
             return;
         }
-        Camera.Size bestSize = previewSizes.get(0);
+        Camera.Size largest = previewSizes.get(0);
         for (Camera.Size size : previewSizes) {
-            if (size.width * size.height > bestSize.width * bestSize.height) {
-                bestSize = size;
+            if (size.width * size.height > largest.width * largest.height) {
+                largest = size;
             }
         }
 
-        mSurfaceSize = bestSize;
+        mSurfaceSize = largest;
 
-        Log.d(TAG, "preview sizes -> w : " + bestSize.width
-                + ", h: " + bestSize.height + ", ratio: "
-                + (float) bestSize.height / bestSize.width);
+        Log.d(TAG, "preview sizes -> w : " + largest.width
+                + ", h: " + largest.height + ", ratio: "
+                + (float) largest.height / largest.width);
         params.setPreviewSize(mSurfaceSize.width, mSurfaceSize.height);
 
         mCamera.setParameters(params);
@@ -384,13 +381,14 @@ public class SquaredCameraPreview extends SurfaceView
 
     // Adjust SurfaceView size
     private void adjustViewSize(Camera.Size size) {
-        int width = getWidth();
+        int width = size.height;
+        int height = size.width;
 
         ViewGroup.LayoutParams layoutParams = this.getLayoutParams();
         // for portrait
-        layoutParams.width = width;
+        layoutParams.width = getWidth();
         // float coefficient = (float) width / size.width;
-        float coefficient = (float) size.height / width;
+        float coefficient = (float) layoutParams.width / getWidth();
         layoutParams.height = (int) (size.width * coefficient);
 
         this.setLayoutParams(layoutParams);

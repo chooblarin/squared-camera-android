@@ -74,7 +74,7 @@ public class SquaredCameraActivity extends ActionBarActivity {
                         mBitmap = bitmap;
                         mSquaredView.setImageBitmap(mBitmap);
                         mCurrentMode = MODE_PICTURE_EDIT;
-                        invalidateOptionsMenu();
+                        supportInvalidateOptionsMenu();
                     }
                 });
             }

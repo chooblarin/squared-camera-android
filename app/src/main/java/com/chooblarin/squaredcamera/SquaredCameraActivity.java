@@ -1,23 +1,20 @@
 package com.chooblarin.squaredcamera;
 
-import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Environment;
+import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.Toast;
-
-import com.chooblarin.squaredcamera.event.BusHolder;
-import com.chooblarin.squaredcamera.event.TakePicture;
-import com.squareup.otto.Subscribe;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -29,12 +26,11 @@ import java.util.Date;
 /**
  * Created by chooblarin on 2014/08/30.
  */
-public class SquaredCameraActivity extends Activity {
+public class SquaredCameraActivity extends ActionBarActivity {
 
     private static final String TAG = "mimic_SquaredCameraActivity";
 
     private static final String JPEG_FILE_PREFIX = "IMG_";
-
     private static final String JPEG_FILE_SUFFIX = ".jpg";
 
     public static Intent createIntent(Context context) {
@@ -42,14 +38,13 @@ public class SquaredCameraActivity extends Activity {
     }
 
     private static final int MODE_CAMERA_PREVIEW = 0;
-
     private static final int MODE_PICTURE_EDIT = 1;
 
     private int mCurrentMode;
 
     private SquaredCameraPreview mPreview;
-
     private SquaredView mSquaredView;
+    private Button mShutterButton;
 
     private Bitmap mBitmap;
 
@@ -69,30 +64,21 @@ public class SquaredCameraActivity extends Activity {
         ((FrameLayout) findViewById(R.id.squared_camera_preview)).addView(mPreview);
 
         mSquaredView = (SquaredView) findViewById(R.id.squared_image_view);
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        BusHolder.getInstance().register(this);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        BusHolder.getInstance().unregister(this);
-    }
-
-    public void onClickTakePicture(View view) {
-        mPreview.onPressTakePicture();
-    }
-
-    @Subscribe
-    public void showTakenPicture(TakePicture e) {
-        mBitmap = e.picture;
-        mSquaredView.setImageBitmap(mBitmap);
-        mCurrentMode = MODE_PICTURE_EDIT;
-        invalidateOptionsMenu();
+        mShutterButton = (Button) findViewById(R.id.shutter_button);
+        mShutterButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mPreview.takePicture(new SquaredCameraPreview.Callback() {
+                    @Override
+                    public void onPictureTaken(Bitmap bitmap) {
+                        mBitmap = bitmap;
+                        mSquaredView.setImageBitmap(mBitmap);
+                        mCurrentMode = MODE_PICTURE_EDIT;
+                        invalidateOptionsMenu();
+                    }
+                });
+            }
+        });
     }
 
     @Override

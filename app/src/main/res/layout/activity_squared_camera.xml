@@ -29,11 +29,11 @@
             android:background="#222">
 
             <Button
+                android:id="@+id/shutter_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_centerInParent="true"
-                android:text="take photo"
-                android:onClick="onClickTakePicture"/>
+                android:text="take photo"/>
 
         </RelativeLayout>
 

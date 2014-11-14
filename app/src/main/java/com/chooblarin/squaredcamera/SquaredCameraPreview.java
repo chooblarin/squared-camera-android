@@ -17,9 +17,6 @@ import android.view.SurfaceView;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
-import com.chooblarin.squaredcamera.event.BusHolder;
-import com.chooblarin.squaredcamera.event.TakePicture;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,30 +29,27 @@ public class SquaredCameraPreview extends SurfaceView
 
     private static final String TAG = "mimic_SquaredCameraPreview";
 
-    private SurfaceHolder mHolder;
+    public interface Callback {
+        void onPictureTaken(Bitmap bitmap);
+    }
 
+    private SurfaceHolder mHolder;
     private Camera mCamera;
 
     private int mCameraId;
 
     private boolean mIsTakingPhoto;
-
     private boolean mFlagControlMode;
-
     private boolean mHasFocusArea;
 
     private Camera.Size mSurfaceSize;
-
     private Camera.Size mPictureSize;
-
     private Camera.CameraInfo mCameraInfo = new Camera.CameraInfo();
 
     private Matrix mCameraToPreviewMatrix = new Matrix();
-
     private Matrix mPreviewToCameraMatrix = new Matrix();
 
     private int mFocusScreenX;
-
     private int mFocusScreenY;
 
     private Paint p = new Paint();
@@ -122,7 +116,8 @@ public class SquaredCameraPreview extends SurfaceView
             p.setStyle(Paint.Style.STROKE);
 
             if (mHasFocusArea) {
-                canvas.drawRect(mFocusScreenX - size, mFocusScreenY - size, mFocusScreenX + size, mFocusScreenY + size, p);
+                canvas.drawRect(mFocusScreenX - size, mFocusScreenY - size, mFocusScreenX + size,
+                        mFocusScreenY + size, p);
             }
         }
 
@@ -235,7 +230,7 @@ public class SquaredCameraPreview extends SurfaceView
         return areas;
     }
 
-    public void onPressTakePicture() {
+    public void takePicture(final Callback callback) {
         Toast.makeText(getContext(),
                 "take picture", Toast.LENGTH_SHORT).show();
 
@@ -271,7 +266,8 @@ public class SquaredCameraPreview extends SurfaceView
                 Log.d(TAG, "sample size " + options.inSampleSize);
                 options.inJustDecodeBounds = false;
                 Bitmap tmp = BitmapFactory.decodeByteArray(data, 0, data.length, options);
-                Log.d(TAG, "risezed size .. options.size " + options.outWidth + ", " + options.outHeight);
+                Log.d(TAG, "risezed size .. options.size " + options.outWidth + ", "
+                        + options.outHeight);
 
                 int size = Math.min(options.outWidth, options.outHeight); // 774
                 float previewRatio = (float) mSurfaceSize.height / (float) mSurfaceSize.width;
@@ -296,7 +292,8 @@ public class SquaredCameraPreview extends SurfaceView
 
                 tmp.recycle();
 
-                BusHolder.getInstance().post(new TakePicture(source));
+                // BusHolder.getInstance().post(new TakePicture(source));
+                callback.onPictureTaken(source);
 
                 // not restart camera
                 mIsTakingPhoto = false;
@@ -317,7 +314,7 @@ public class SquaredCameraPreview extends SurfaceView
                     "Taking a photo...", Toast.LENGTH_SHORT).show();
 
         } catch (Exception e) {
-            Log.d(TAG, "Camera onPressTakePicture failed: " + e.getMessage());
+            Log.d(TAG, "Camera takePicture failed: " + e.getMessage());
             e.printStackTrace();
             Toast.makeText(getContext(),
                     "Failed to take picture", Toast.LENGTH_SHORT).show();
@@ -354,7 +351,8 @@ public class SquaredCameraPreview extends SurfaceView
         mSurfaceSize = bestSize;
 
         Log.d(TAG, "preview sizes -> w : " + bestSize.width
-                + ", h: " + bestSize.height + ", ratio: " + (float) bestSize.height / bestSize.width);
+                + ", h: " + bestSize.height + ", ratio: "
+                + (float) bestSize.height / bestSize.width);
         params.setPreviewSize(mSurfaceSize.width, mSurfaceSize.height);
 
         mCamera.setParameters(params);
@@ -376,7 +374,8 @@ public class SquaredCameraPreview extends SurfaceView
 
         if (currentSize != null) {
             Log.d(TAG, "picture size: width ->" + currentSize.width + ", " +
-                    "height -> " + currentSize.height + ", ratio -> " + (float) currentSize.height / currentSize.width);
+                    "height -> " + currentSize.height + ", ratio -> "
+                    + (float) currentSize.height / currentSize.width);
             mPictureSize = currentSize;
             params.setPictureSize(mPictureSize.width, mPictureSize.height);
             mCamera.setParameters(params);
